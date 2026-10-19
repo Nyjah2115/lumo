@@ -1,0 +1,551 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lumo® — Mieszkanie na Mokotowie</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1d1b18;
+    --ink-dim: rgba(29, 27, 24, .55);
+    --rule: rgba(29, 27, 24, .22);
+    /* page colour = the seamless background of the model video, so the model sits on the page itself */
+    --paper: #f4e6d6;
+    --mark: #1d1b18;
+    --font: "Inter Tight", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scrollbar-width: none; }
+  html::-webkit-scrollbar { display: none; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font);
+    font-size: 11px;
+    line-height: 1.25;
+    letter-spacing: -.005em;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  body.no-cursor, body.no-cursor * { cursor: none !important; }
+
+  /* scroll length drives the whole story */
+  .track { height: 900vh; }
+
+  .stage {
+    position: fixed; inset: 0;
+    overflow: hidden;
+    background: var(--paper);
+  }
+  canvas {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    display: block;
+    will-change: filter, opacity, transform;
+  }
+  #product {
+    opacity: 0;
+    /* while the blurred hero is still showing, only the cut-out model shows on top of it;
+       mask-size cover maps the mask exactly like the canvas frame */
+    -webkit-mask: url(frames/product-mask.png) center / cover no-repeat;
+            mask: url(frames/product-mask.png) center / cover no-repeat;
+  }
+  /* once the hero has faded to the page colour, the full frame is shown (the camera swings past the
+     cut-out); the frame edges fade out softly so any tint in the video background melts into the page */
+  #product.full {
+    -webkit-mask: linear-gradient(to bottom, transparent 0%, #000 12%, #000 88%, transparent 100%),
+                  linear-gradient(to right, transparent 0%, #000 10%, #000 90%, transparent 100%);
+    -webkit-mask-composite: source-in;
+            mask: linear-gradient(to bottom, transparent 0%, #000 12%, #000 88%, transparent 100%),
+                  linear-gradient(to right, transparent 0%, #000 10%, #000 90%, transparent 100%);
+            mask-composite: intersect;
+  }
+
+  /* ---------- header ---------- */
+  header {
+    position: fixed; top: 0; left: 0; right: 0;
+    z-index: 20;
+    display: grid;
+    grid-template-columns: 26% 24% 1fr auto;
+    padding: 26px 40px 0;
+    pointer-events: none;
+  }
+  .logo { font-size: 15px; font-weight: 600; letter-spacing: -.03em; padding-top: 2px; }
+  .logo sup { font-size: .55em; vertical-align: .55em; margin-left: 1px; }
+  .nav-col {
+    border-left: 1px solid var(--rule);
+    padding-left: 12px;
+    display: flex; flex-direction: column; gap: 1px;
+  }
+  .nav-col span:first-child { color: var(--ink); }
+  .nav-col span { color: var(--ink-dim); }
+  .cart { display: flex; gap: 22px; color: var(--ink); }
+  .cart span:first-child { color: var(--ink-dim); }
+
+  /* ---------- hero overlay ---------- */
+  .hero-ui { position: absolute; inset: 0; z-index: 5; pointer-events: none; will-change: opacity, transform; }
+  .wordmark {
+    position: absolute;
+    left: 34px; bottom: 74px;
+    font-size: 15.5vw;
+    font-weight: 500;
+    letter-spacing: -.075em;
+    line-height: .8;
+    /* solid ink: a difference blend turns blue on the warm oak floor */
+    color: var(--ink);
+    z-index: 5;
+    pointer-events: none;
+    will-change: transform, opacity;
+  }
+  .wordmark sup {
+    font-size: .28em;
+    font-weight: 400;
+    vertical-align: 1.75em;
+    letter-spacing: 0;
+    margin-left: .04em;
+  }
+  .hero-tag {
+    position: absolute;
+    left: 42px; bottom: 34px;
+    width: 30vw;
+    color: rgba(29, 27, 24, .82);
+    font-size: 11px;
+  }
+  .hero-info {
+    position: absolute;
+    /* up on the calm ceiling: lower down it runs into the sofa and curtains */
+    right: 40px; top: 130px;
+    display: grid;
+    grid-template-columns: auto 230px;
+    gap: 0 34px;
+    /* dark ink: this side of the hero is pale haze, white would vanish */
+    color: rgba(29, 27, 24, .82);
+    text-align: right;
+  }
+  .hero-info .lbl { color: rgba(29, 27, 24, .55); }
+  .hero-meta {
+    position: absolute;
+    right: 40px; top: calc(130px + 74px);
+    display: flex; gap: 22px;
+    color: rgba(29, 27, 24, .7);
+  }
+
+  /* ---------- product callouts ---------- */
+  .callout {
+    position: absolute;
+    z-index: 6;
+    pointer-events: none;
+    opacity: 0;
+    will-change: opacity;
+  }
+  .callout .rule {
+    height: 1px; background: var(--rule);
+    transform-origin: left center;
+    transform: scaleX(0);
+  }
+  .callout.right .rule { transform-origin: right center; }
+  .echo { position: relative; }
+  .echo .layer {
+    font-size: 26px;
+    font-weight: 500;
+    letter-spacing: -.035em;
+    line-height: 1.02;
+    will-change: transform, opacity, filter;
+  }
+  .echo .ghost {
+    position: absolute; left: 0; right: 0; top: 0;
+    color: var(--ink);
+    pointer-events: none;
+  }
+  .callout.right .echo .layer { text-align: right; }
+
+  .specs { width: 100%; border-collapse: collapse; font-size: 10px; letter-spacing: .02em; text-transform: uppercase; }
+  .specs td { padding: 4px 0; border-bottom: 1px solid rgba(29,27,24,.12); color: var(--ink-dim); }
+  .specs td:first-child { color: var(--ink); padding-left: 10px; position: relative; }
+  .specs td:first-child::before {
+    content: ""; position: absolute; left: 0; top: 4px; bottom: 4px;
+    width: 2px; background: var(--ink);
+  }
+  /* values keep their case: units read wrong in caps (72 H, ±2 S) */
+  .specs td:last-child { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); text-transform: none; }
+
+  #c1 { left: 52px; top: 50%; width: 300px; transform: translateY(-40%); }
+  #c1 .echo { padding: 18px 0; }
+  #c1-specs { position: absolute; right: 52px; top: 92px; width: 300px; z-index: 6; opacity: 0; }
+
+  /* left, like the first callout */
+  #c2 { left: 52px; top: 42%; width: 330px; }
+  #c2 .echo { padding: 16px 0 20px; }
+  #c2 .specs { margin-top: 26px; }
+
+  #c3 { left: 40px; right: 40px; bottom: 36px; display: grid; grid-template-columns: 1fr auto; align-items: end; }
+  .final-name {
+    font-size: 9.5vw; font-weight: 500; letter-spacing: -.07em; line-height: .8;
+  }
+  .final-name sup { font-size: .26em; vertical-align: 1.8em; font-weight: 400; letter-spacing: 0; }
+  .final-side { display: flex; flex-direction: column; gap: 14px; align-items: flex-end; padding-bottom: 6px; text-align: right; }
+  .final-side .price { font-size: 26px; font-weight: 500; letter-spacing: -.03em; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 28px;
+    padding: 13px 16px 13px 18px;
+    background: var(--ink); color: var(--paper);
+    font-size: 12px; font-weight: 500;
+    border-radius: 999px;
+  }
+  .final-side .fine { color: var(--ink-dim); }
+
+  /* scroll indicator, like the thin line in the reel */
+  .indicator {
+    position: fixed; right: 16px; top: 50%;
+    width: 1px; height: 120px;
+    transform: translateY(-50%);
+    background: rgba(29,27,24,.15);
+    z-index: 20;
+  }
+  .indicator i {
+    position: absolute; left: 0; top: 0; width: 1px; height: 100%;
+    background: rgba(29,27,24,.8);
+    transform-origin: top;
+    transform: scaleY(0);
+  }
+
+  /* ---------- loader ---------- */
+  .loader {
+    position: fixed; inset: 0; z-index: 50;
+    background: #000;
+    display: flex; align-items: flex-end; justify-content: space-between;
+    padding: 40px;
+    background: var(--paper);
+    font-size: 13px;
+    transition: opacity .8s ease;
+  }
+  .loader.done { opacity: 0; pointer-events: none; }
+  .loader b { font-weight: 500; font-size: 15px; letter-spacing: -.03em; }
+  .loader .pct { font-variant-numeric: tabular-nums; color: var(--ink-dim); }
+</style>
+</head>
+<body>
+
+<div class="loader" id="loader"><b>Lumo<sup>®</sup></b><span class="pct" id="pct">0%</span></div>
+
+<header>
+  <div class="logo">Lumo<sup>®</sup></div>
+  <div class="nav-col"><span>Mieszkania</span><span>Domy</span><span>Inwestycje</span></div>
+  <div class="nav-col"><span>Oferta 01</span><span>O nas</span></div>
+  <div class="cart"><span>Szukaj</span><span>Umów oglądanie</span></div>
+</header>
+
+<div class="stage">
+  <canvas id="hero"></canvas>
+  <canvas id="product"></canvas>
+
+  <div class="wordmark" id="wordmark">Lumo<sup>®</sup></div>
+  <div class="hero-ui" id="heroUi">
+    <p class="hero-tag">Jasne mieszkania w dobrych miejscach. Sprawdzamy stan prawny, mierzymy metraż i pokazujemy każdy kąt, zanim przyjdziesz na oglądanie.</p>
+    <div class="hero-info">
+      <span class="lbl">Info</span>
+      <span>Stary Mokotów, 4. piętro z 6, zieleń za oknem. Salon z aneksem, dwie sypialnie, balkon na zachód.</span>
+    </div>
+    <div class="hero-meta"><span>(Oferta 01)</span><span>(2026)</span></div>
+  </div>
+
+  <!-- callout 1: size and rooms -->
+  <div class="callout" id="c1-specs" data-in=".37" data-out=".51">
+    <table class="specs">
+      <tr><td>Metraż</td><td></td><td data-count="70" data-suffix=" m²">0 m²</td></tr>
+      <tr><td>Pokoje</td><td></td><td data-count="3">0</td></tr>
+      <tr><td>Piętro</td><td style="text-align:center">z 6</td><td data-count="4">0</td></tr>
+    </table>
+  </div>
+  <div class="callout" id="c1" data-in=".37" data-out=".51">
+    <div class="rule"></div>
+    <div class="echo" data-text="70 m² w trzech jasnych pokojach. Salon z aneksem od zachodu, sypialnie od cichej strony."></div>
+    <div class="rule"></div>
+  </div>
+
+  <!-- callout 2: balcony and extras -->
+  <div class="callout" id="c2" data-in=".55" data-out=".73">
+    <div class="rule"></div>
+    <div class="echo" data-text="Balkon na zachód: popołudniowe słońce i korony drzew zamiast sąsiada naprzeciwko. Miejsce w garażu i komórka w cenie."></div>
+    <table class="specs">
+      <tr><td>Balkon</td><td></td><td data-count="7" data-suffix=" m²">0 m²</td></tr>
+      <tr><td>Rok budowy</td><td></td><td>2019</td></tr>
+      <tr><td>Garaż</td><td></td><td>w cenie</td></tr>
+    </table>
+  </div>
+
+  <!-- callout 3: buy -->
+  <div class="callout" id="c3" data-in=".89" data-out="1.5">
+    <div class="final-name">Mokotów<sup>70 m²</sup></div>
+    <div class="final-side">
+      <span class="fine">3 pokoje · 4. piętro · balkon · 18&nbsp;429 zł/m²</span>
+      <span class="price">1&nbsp;290&nbsp;000 zł</span>
+      <span class="btn">Umów oglądanie <span>→</span></span>
+      <span class="fine">Oferta przykładowa · Lumo Nieruchomości</span>
+    </div>
+  </div>
+</div>
+
+<div class="indicator"><i id="ind"></i></div>
+<div class="track"></div>
+
+<script src="frames/manifest.js"></script>
+<script>
+(() => {
+  const FR = window.FRAMES || { hero: 0, product: 0 };
+  const PAPER = getComputedStyle(document.documentElement).getPropertyValue('--paper').trim() || '#000';
+
+  // every reload starts at the top, ready for a fresh take
+  if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+  scrollTo(0, 0);
+
+  // timeline (fractions of total scroll)
+  // the transition copies the reel beat for beat:
+  // camera rises over the apartment -> the interior blurs -> the sharp model of the same apartment
+  // appears exactly on top of it -> only then the blurred interior fades to the page colour -> camera swings round the model
+  const T = {
+    heroUiOut: [0.01, 0.105],
+    heroPlay: [0.0, 0.20],
+    blur: [0.19, 0.225],
+    productIn: [0.23, 0.28],
+    darken: [0.255, 0.325],
+    // the camera tilts down from overhead and swings round to the three-quarter view under the price
+    productPlay: [0.35, 0.94]
+  };
+  // the model video frames the apartment differently than the last hero frame, so the product layer
+  // starts scaled/shifted onto the apartment (measured from both frames), then settles at REST
+  // (x/y are fractions of the drawn 16:9 frame, measured from the last hero frame vs product frame 0)
+  const MATCH = { s: 1.0644, x: -0.0005, y: -0.0010 };
+  // the model fills most of its frame: it settles smaller and a touch right, clear of the menu and the left-hand copy
+  const REST = { s: 0.7, x: 0.055, y: 0.045 };
+  const GROW = [0.35, 0.50];
+
+  const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+  const range = (p, [a, b]) => clamp((p - a) / (b - a));
+  const ease = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a)); return t * t * (3 - 2 * t); };
+
+  // ---------- frame loading ----------
+  const pad = n => String(n).padStart(4, '0');
+  const seqs = {
+    hero: { count: FR.hero, imgs: [], canvas: document.getElementById('hero'), fit: 1, y: 0.5 },
+    product: { count: FR.product, imgs: [], canvas: document.getElementById('product'), fit: 1, y: 0.5 }
+  };
+  let total = FR.hero + FR.product, loaded = 0;
+  const pct = document.getElementById('pct');
+
+  function loadSeq(name) {
+    const s = seqs[name];
+    for (let i = 0; i < s.count; i++) {
+      const img = new Image();
+      img.decoding = 'async';
+      img.onload = img.onerror = () => {
+        loaded++;
+        pct.textContent = Math.round(loaded / total * 100) + '%';
+        if (loaded === total) ready();
+      };
+      img.src = `frames/${name}/${pad(i)}.jpg`;
+      s.imgs.push(img);
+    }
+  }
+  loadSeq('hero'); loadSeq('product');
+  if (!total) ready();
+
+  // ---------- canvas drawing ----------
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  function sizeCanvases() {
+    for (const k in seqs) {
+      const c = seqs[k].canvas;
+      c.width = Math.round(innerWidth * dpr);
+      c.height = Math.round(innerHeight * dpr);
+      seqs[k].last = -1;
+    }
+  }
+  // pos may be fractional: the two neighbouring frames are cross-faded, so scrubbing never steps
+  function draw(name, pos) {
+    const s = seqs[name];
+    if (!s.count) return;
+    pos = clamp(pos, 0, s.count - 1);
+    const i = Math.floor(pos), f = pos - i;
+    const key = i + Math.round(f * 32) / 32;
+    if (key === s.last) return;
+    const a = s.imgs[i], b = s.imgs[Math.min(i + 1, s.count - 1)];
+    if (!a || !a.complete || !a.naturalWidth) return;
+    const c = s.canvas, ctx = c.getContext('2d');
+    const sc = Math.max(c.width / a.naturalWidth, c.height / a.naturalHeight) * s.fit;
+    const w = a.naturalWidth * sc, h = a.naturalHeight * sc;
+    const x = (c.width - w) / 2, y = (c.height - h) * s.y;
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = PAPER;
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.drawImage(a, x, y, w, h);
+    if (f > 0.02 && b !== a && b.complete && b.naturalWidth) {
+      ctx.globalAlpha = f;
+      ctx.drawImage(b, x, y, w, h);
+      ctx.globalAlpha = 1;
+    }
+    s.last = key;
+  }
+
+  // scroll -> frame position along the measured motion curve, so equal scroll = equal rotation
+  // (the AI video speeds up, stalls and repeats frames; the curve irons that out)
+  function curvePos(curve, count, t) {
+    if (!curve || curve.length !== count) return t * (count - 1);
+    let lo = 0, hi = count - 1;
+    while (hi - lo > 1) { const m = (lo + hi) >> 1; if (curve[m] <= t) lo = m; else hi = m; }
+    const span = curve[hi] - curve[lo];
+    return lo + (span > 0 ? clamp((t - curve[lo]) / span) : 0);
+  }
+
+  // ---------- echo text ----------
+  const GHOSTS = 3;
+  document.querySelectorAll('.echo').forEach(el => {
+    const txt = el.dataset.text;
+    const main = document.createElement('div');
+    main.className = 'layer main';
+    main.textContent = txt;
+    el.appendChild(main);
+    for (let g = 1; g <= GHOSTS; g++) {
+      const d = document.createElement('div');
+      d.className = 'layer ghost';
+      d.dataset.k = g;
+      d.setAttribute('aria-hidden', 'true');
+      d.textContent = txt;
+      el.appendChild(d);
+    }
+  });
+
+  const callouts = [...document.querySelectorAll('.callout')].map(el => ({
+    el,
+    a: parseFloat(el.dataset.in),
+    b: parseFloat(el.dataset.out),
+    rules: el.querySelectorAll('.rule'),
+    main: el.querySelector('.layer.main'),
+    ghosts: [...el.querySelectorAll('.ghost')],
+    counts: [...el.querySelectorAll('[data-count]')]
+  }));
+
+  function renderCallout(c, p) {
+    const inT = smooth(c.a, c.a + 0.06, p);
+    const outT = smooth(c.b - 0.05, c.b, p);
+    const vis = inT * (1 - outT);
+    c.el.style.opacity = vis.toFixed(3);
+    c.rules.forEach(r => r.style.transform = `scaleX(${ease(inT) * (1 - outT)})`);
+    if (c.main) {
+      // main text settles from below on enter, drifts up on exit
+      const y = (1 - ease(inT)) * 18 - ease(outT) * 18;
+      c.main.style.transform = `translateY(${y}px)`;
+      c.main.style.filter = `blur(${((1 - inT) + outT) * 3}px)`;
+      // ghosts: stacked copies that collapse into the main line
+      const spread = (1 - inT) + outT;          // 1 -> 0 -> 1
+      const dir = outT > 0 ? -1 : 1;
+      c.ghosts.forEach(g => {
+        const k = +g.dataset.k;
+        const off = dir * spread * k * 15 + y;
+        const op = spread > 0.001 ? (0.7 / k) * Math.sin(Math.PI * clamp(1 - spread * 0.9)) : 0;
+        g.style.transform = `translateY(${off}px)`;
+        g.style.opacity = op.toFixed(3);
+        g.style.filter = `blur(${k * 0.35 + spread * 1.2}px)`;
+      });
+    }
+    c.counts.forEach(n => {
+      const v = Math.round(+n.dataset.count * ease(inT));
+      n.textContent = (n.dataset.prefix || '') + v + (n.dataset.suffix || '');
+    });
+  }
+
+  // ---------- main loop ----------
+  const heroUi = document.getElementById('heroUi');
+  const wordmark = document.getElementById('wordmark');
+  const heroC = seqs.hero.canvas, prodC = seqs.product.canvas;
+  const ind = document.getElementById('ind');
+  let target = 0, current = 0;
+
+  const maxScroll = () => document.documentElement.scrollHeight - innerHeight;
+  addEventListener('scroll', () => { target = clamp(scrollY / maxScroll()); }, { passive: true });
+  addEventListener('resize', () => { sizeCanvases(); target = clamp(scrollY / maxScroll()); });
+  // jump straight to a point of the story without the smoothing (handy for checking a moment)
+  window.lumoSeek = q => { scrollTo(0, clamp(q) * maxScroll()); target = current = clamp(q); };
+
+  function frame() {
+    current += (target - current) * 0.075;
+    if (Math.abs(target - current) < 0.00005) current = target;
+    const p = current;
+
+    // hero overlay drifts up like it scrolls with the page, then fades
+    const hu = range(p, T.heroUiOut);
+    const huFade = smooth(0.3, 0.9, hu);
+    heroUi.style.opacity = (1 - huFade).toFixed(3);
+    heroUi.style.transform = `translateY(${hu * -22}vh)`;
+    wordmark.style.opacity = (1 - huFade).toFixed(3);
+    wordmark.style.transform = `translateY(${hu * -22}vh)`;
+
+    // hero sequence
+    // along the measured motion curve too: the walls drop fast in the AI video, the curve gives that moment more scroll
+    draw('hero', curvePos(FR.heroCurve, seqs.hero.count, ease(range(p, T.heroPlay))));
+
+    // 1) the interior blurs out, still bright (slight overscale hides the soft blurred edges)
+    const b = ease(range(p, T.blur));
+    // 3) only after the model is in, the blurred interior fades away to the page colour
+    const d = ease(range(p, T.darken));
+    heroC.style.filter = b > 0 ? `blur(${b * 30}px)` : 'none';
+    heroC.style.transform = `scale(${1 + b * 0.06})`;
+    heroC.style.opacity = (1 - d).toFixed(3);
+    // 2) the sharp cut-out model fades in straight on top of the apartment: opacity only, no blur, no zoom
+    const pIn = smooth(0, 1, range(p, T.productIn));
+    prodC.style.opacity = pIn.toFixed(3);
+    prodC.classList.toggle('full', d > 0.999);
+    const g = ease(range(p, GROW));
+    const coverW = Math.max(innerWidth, innerHeight * 16 / 9), coverH = coverW * 9 / 16;
+    const lerp = (a, b) => a + (b - a) * g;
+    prodC.style.transform = `translate(${lerp(MATCH.x, REST.x) * coverW}px, ${lerp(MATCH.y, REST.y) * coverH}px) scale(${lerp(MATCH.s, REST.s)})`;
+
+    // product sequence
+    draw('product', curvePos(FR.productCurve, seqs.product.count, range(p, T.productPlay)));
+
+    callouts.forEach(c => renderCallout(c, p));
+    ind.style.transform = `scaleY(${p})`;
+
+    requestAnimationFrame(frame);
+  }
+
+  function ready() {
+    sizeCanvases();
+    draw('hero', 0); draw('product', 0);
+    document.getElementById('loader').classList.add('done');
+    requestAnimationFrame(frame);
+  }
+
+  // ---------- recording helpers ----------
+  // A = auto-scroll through the whole page (steady speed, ideal for screen recording)
+  // C = hide / show the cursor
+  // 0 = jump back to the top
+  let auto = null;
+  const AUTO_SECONDS = 16;
+  function stopAuto() { if (auto) cancelAnimationFrame(auto.raf); auto = null; }
+  function startAuto() {
+    stopAuto();
+    const from = scrollY, to = maxScroll();
+    const dur = AUTO_SECONDS * 1000 * (1 - from / to);
+    const t0 = performance.now();
+    const step = now => {
+      const t = clamp((now - t0) / dur);
+      scrollTo(0, from + (to - from) * t);
+      if (t < 1) auto.raf = requestAnimationFrame(step); else auto = null;
+    };
+    auto = { raf: requestAnimationFrame(step) };
+  }
+  addEventListener('keydown', e => {
+    const k = e.key.toLowerCase();
+    if (k === 'a') auto ? stopAuto() : startAuto();
+    if (k === 'c') document.body.classList.toggle('no-cursor');
+    if (k === '0') { stopAuto(); scrollTo(0, 0); target = current = 0; }
+  });
+  addEventListener('wheel', stopAuto, { passive: true });
+})();
+</script>
+</body>
+</html>
