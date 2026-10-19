@@ -64,26 +64,34 @@
             mask-composite: intersect;
   }
 
-  /* ---------- header ---------- */
+  /* ---------- header: floating glass capsule ---------- */
   header {
-    position: fixed; top: 0; left: 0; right: 0;
+    position: fixed; top: 18px; left: 0; right: 0;
     z-index: 20;
-    display: grid;
-    grid-template-columns: 26% 24% 1fr auto;
-    padding: 26px 40px 0;
+    display: flex; justify-content: center;
     pointer-events: none;
   }
-  .logo { font-size: 15px; font-weight: 600; letter-spacing: -.03em; padding-top: 2px; }
-  .logo sup { font-size: .55em; vertical-align: .55em; margin-left: 1px; }
-  .nav-col {
-    border-left: 1px solid var(--rule);
-    padding-left: 12px;
-    display: flex; flex-direction: column; gap: 1px;
+  .cap {
+    display: flex; align-items: center; gap: 26px;
+    padding: 7px 7px 7px 22px;
+    border-radius: 999px;
+    background: rgba(244, 230, 214, .55);
+    -webkit-backdrop-filter: blur(16px) saturate(1.2);
+            backdrop-filter: blur(16px) saturate(1.2);
+    border: 1px solid rgba(29, 27, 24, .08);
+    box-shadow: 0 6px 24px rgba(29, 27, 24, .08);
+    font-size: 13px;
   }
-  .nav-col span:first-child { color: var(--ink); }
-  .nav-col span { color: var(--ink-dim); }
-  .cart { display: flex; gap: 22px; color: var(--ink); }
-  .cart span:first-child { color: var(--ink-dim); }
+  .cap b { font-weight: 600; letter-spacing: -.02em; }
+  /* the link for the part of the story on screen lights up (set in the main loop) */
+  .cap span { color: rgba(29, 27, 24, .5); transition: color .35s ease; }
+  .cap span.on { color: var(--ink); }
+  .cap-btn {
+    background: var(--ink); color: var(--paper);
+    font-weight: 500; font-size: 12.5px;
+    padding: 9px 16px; border-radius: 999px;
+    white-space: nowrap; overflow: hidden;
+  }
 
   /* ---------- hero overlay ---------- */
   .hero-ui { position: absolute; inset: 0; z-index: 5; pointer-events: none; will-change: opacity, transform; }
@@ -232,10 +240,13 @@
 <div class="loader" id="loader"><b>Mieszkanie</b><span class="pct" id="pct">0%</span></div>
 
 <header>
-  <div class="logo">Mieszkanie</div>
-  <div class="nav-col"><span>Mieszkania</span><span>Domy</span><span>Inwestycje</span></div>
-  <div class="nav-col"><span>Oferta 01</span><span>O nas</span></div>
-  <div class="cart"><span>Szukaj</span><span>Umów oglądanie</span></div>
+  <div class="cap" id="cap">
+    <b>Oferta 01</b>
+    <span data-from="0" data-to=".3">Wnętrze</span>
+    <span data-from=".3" data-to=".87">Układ</span>
+    <span data-from=".87" data-to="2">Cena</span>
+    <div class="cap-btn" id="capBtn">Umów oglądanie</div>
+  </div>
 </header>
 
 <div class="stage">
@@ -462,6 +473,9 @@
   const wordmark = document.getElementById('wordmark');
   const heroC = seqs.hero.canvas, prodC = seqs.product.canvas;
   const ind = document.getElementById('ind');
+  const cap = document.getElementById('cap'), capBtn = document.getElementById('capBtn');
+  const capLinks = [...cap.querySelectorAll('span[data-from]')];
+  let capBtnW = 0; // measured when the fold starts, once the web font is in
   let target = 0, current = 0;
 
   const maxScroll = () => document.documentElement.scrollHeight - innerHeight;
@@ -507,6 +521,19 @@
     draw('product', curvePos(FR.productCurve, seqs.product.count, range(p, T.productPlay)));
 
     callouts.forEach(c => renderCallout(c, p));
+    capLinks.forEach(l => l.classList.toggle('on', p >= +l.dataset.from && p < +l.dataset.to));
+    // the price section has its own button: the capsule's one folds away so it is never on screen twice
+    const fold = smooth(0.86, 0.9, p);
+    if (fold > 0) {
+      if (!capBtnW) capBtnW = capBtn.offsetWidth;
+      capBtn.style.opacity = (1 - fold).toFixed(3);
+      capBtn.style.maxWidth = `${capBtnW * (1 - fold)}px`;
+      capBtn.style.paddingLeft = capBtn.style.paddingRight = `${16 * (1 - fold)}px`;
+      capBtn.style.marginLeft = `${-26 * fold}px`;
+      cap.style.paddingRight = `${7 + 15 * fold}px`;
+    } else if (capBtn.style.maxWidth) {
+      capBtn.style.cssText = ''; cap.style.paddingRight = '';
+    }
     ind.style.transform = `scaleY(${p})`;
 
     requestAnimationFrame(frame);
