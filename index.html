@@ -185,14 +185,19 @@
     font-size: 26px;
     font-weight: 500;
     letter-spacing: -.035em;
-    line-height: 1.02;
-    will-change: transform, opacity, filter;
+    line-height: 1.08;
+    will-change: transform;
   }
-  .echo .ghost {
-    position: absolute; left: 0; right: 0; top: 0;
-    color: var(--ink);
-    pointer-events: none;
+  /* each word rises out of its own clip, so a line builds up word by word with no blur or ghost copies;
+     the clip is padded so Polish accents (ó, ż) and descenders (ą, p, y) are never cut */
+  .echo .w {
+    display: inline-block;
+    overflow: hidden;
+    vertical-align: top;
+    padding: .1em 0 .14em;
+    margin: -.1em 0 -.14em;
   }
+  .echo .wi { display: inline-block; will-change: transform; }
   .callout.right .echo .layer { text-align: right; }
 
   .specs { width: 100%; border-collapse: collapse; font-size: 10px; letter-spacing: .02em; text-transform: uppercase; }
@@ -443,22 +448,21 @@
     return lo + (span > 0 ? clamp((t - curve[lo]) / span) : 0);
   }
 
-  // ---------- echo text ----------
-  const GHOSTS = 3;
+  // ---------- callout text: words rise into place ----------
   document.querySelectorAll('.echo').forEach(el => {
-    const txt = el.dataset.text;
     const main = document.createElement('div');
     main.className = 'layer main';
-    main.textContent = txt;
+    el.dataset.text.split(' ').forEach((word, i) => {
+      if (i) main.appendChild(document.createTextNode(' '));
+      const w = document.createElement('span');
+      w.className = 'w';
+      const wi = document.createElement('span');
+      wi.className = 'wi';
+      wi.textContent = word;
+      w.appendChild(wi);
+      main.appendChild(w);
+    });
     el.appendChild(main);
-    for (let g = 1; g <= GHOSTS; g++) {
-      const d = document.createElement('div');
-      d.className = 'layer ghost';
-      d.dataset.k = g;
-      d.setAttribute('aria-hidden', 'true');
-      d.textContent = txt;
-      el.appendChild(d);
-    }
   });
 
   const callouts = [...document.querySelectorAll('.callout')].map(el => ({
@@ -467,32 +471,24 @@
     b: parseFloat(el.dataset.out),
     rules: el.querySelectorAll('.rule'),
     main: el.querySelector('.layer.main'),
-    ghosts: [...el.querySelectorAll('.ghost')],
+    words: [...el.querySelectorAll('.wi')],
     counts: [...el.querySelectorAll('[data-count]')]
   }));
 
   function renderCallout(c, p) {
     const inT = smooth(c.a, c.a + 0.06, p);
     const outT = smooth(c.b - 0.05, c.b, p);
-    const vis = inT * (1 - outT);
-    c.el.style.opacity = vis.toFixed(3);
+    c.el.style.opacity = (smooth(0, 0.4, inT) * (1 - outT)).toFixed(3);
     c.rules.forEach(r => r.style.transform = `scaleX(${ease(inT) * (1 - outT)})`);
     if (c.main) {
-      // main text settles from below on enter, drifts up on exit
-      const y = (1 - ease(inT)) * 18 - ease(outT) * 18;
-      c.main.style.transform = `translateY(${y}px)`;
-      c.main.style.filter = `blur(${((1 - inT) + outT) * 3}px)`;
-      // ghosts: stacked copies that collapse into the main line
-      const spread = (1 - inT) + outT;          // 1 -> 0 -> 1
-      const dir = outT > 0 ? -1 : 1;
-      c.ghosts.forEach(g => {
-        const k = +g.dataset.k;
-        const off = dir * spread * k * 15 + y;
-        const op = spread > 0.001 ? (0.7 / k) * Math.sin(Math.PI * clamp(1 - spread * 0.9)) : 0;
-        g.style.transform = `translateY(${off}px)`;
-        g.style.opacity = op.toFixed(3);
-        g.style.filter = `blur(${k * 0.35 + spread * 1.2}px)`;
+      // one word after another slides up out of its clip; the last one lands as the entry completes
+      const n = c.words.length;
+      c.words.forEach((w, k) => {
+        const t = clamp(inT * 1.6 - (k / Math.max(1, n - 1)) * 0.6);
+        w.style.transform = `translateY(${((1 - ease(t)) * 110).toFixed(2)}%)`;
       });
+      // on the way out the block lifts a little while it fades
+      c.main.style.transform = `translateY(${(-ease(outT) * 14).toFixed(2)}px)`;
     }
     c.counts.forEach(n => {
       const v = Math.round(+n.dataset.count * ease(inT));
