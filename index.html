@@ -115,30 +115,30 @@
     letter-spacing: 0;
     margin-left: .04em;
   }
-  .hero-tag {
+  /* hero copy sits in glass cards like the top capsule: on the bright room, bare small text got lost */
+  .hero-tag, .hero-info {
     position: absolute;
-    left: 42px; bottom: 34px;
-    width: 30vw;
-    color: rgba(29, 27, 24, .82);
-    font-size: 11px;
+    right: 40px;
+    padding: 14px 18px 15px;
+    border-radius: 18px;
+    background: rgba(244, 230, 214, .62);
+    -webkit-backdrop-filter: blur(16px) saturate(1.2);
+            backdrop-filter: blur(16px) saturate(1.2);
+    border: 1px solid rgba(29, 27, 24, .08);
+    box-shadow: 0 6px 24px rgba(29, 27, 24, .08);
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 1.4;
   }
-  .hero-info {
-    position: absolute;
-    /* up on the calm ceiling: lower down it runs into the sofa and curtains */
-    right: 40px; top: 130px;
-    display: grid;
-    grid-template-columns: auto 230px;
-    gap: 0 34px;
-    /* dark ink: this side of the hero is pale haze, white would vanish */
-    color: rgba(29, 27, 24, .82);
-    text-align: right;
-  }
-  .hero-info .lbl { color: rgba(29, 27, 24, .55); }
-  .hero-meta {
-    position: absolute;
-    right: 40px; top: calc(130px + 74px);
-    display: flex; gap: 22px;
-    color: rgba(29, 27, 24, .7);
+  .hero-info { top: 92px; width: 300px; }
+  .hero-tag { bottom: 34px; width: 340px; }
+  .hero-info .lbl {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 10.5px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
   }
 
   /* ---------- product callouts ---------- */
@@ -260,7 +260,6 @@
       <span class="lbl">Info</span>
       <span>4. piętro z 6, zieleń za oknem. Salon z aneksem, dwie sypialnie, balkon na zachód.</span>
     </div>
-    <div class="hero-meta"><span>(Oferta 01)</span><span>(2026)</span></div>
   </div>
 
   <!-- callout 1: size and rooms -->
