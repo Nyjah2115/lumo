@@ -53,15 +53,40 @@
     -webkit-mask: url(frames/product-mask.png) center / cover no-repeat;
             mask: url(frames/product-mask.png) center / cover no-repeat;
   }
-  /* once the hero has faded to the page colour, the full frame is shown (the camera swings past the
-     cut-out); the frame edges fade out softly so any tint in the video background melts into the page */
-  #product.full {
-    -webkit-mask: linear-gradient(to bottom, transparent 0%, #000 12%, #000 88%, transparent 100%),
-                  linear-gradient(to right, transparent 0%, #000 10%, #000 90%, transparent 100%);
-    -webkit-mask-composite: source-in;
-            mask: linear-gradient(to bottom, transparent 0%, #000 12%, #000 88%, transparent 100%),
-                  linear-gradient(to right, transparent 0%, #000 10%, #000 90%, transparent 100%);
-            mask-composite: intersect;
+  /* once the hero has faded, the model frames (backdrop whitened by narzedzia-stron/biel.py) are
+     multiplied onto the page: white drops out, so the model and its contact shadow sit on the
+     window-light background below instead of on a flat cream rectangle */
+  #product.full { -webkit-mask: none; mask: none; mix-blend-mode: multiply; }
+
+  /* ---------- background behind the model: late-afternoon window light ---------- */
+  .bgfx {
+    position: absolute; inset: 0;
+    opacity: 0;
+    overflow: hidden;
+    pointer-events: none;
+    background: radial-gradient(ellipse 85% 75% at 68% 38%, #faefe1 0%, #f0e0cc 55%, #e5d1b9 100%);
+  }
+  /* three panes of sunlight with the shadows of the window frame between them, falling at an angle */
+  .bgfx::before {
+    content: "";
+    position: absolute;
+    top: -12%; left: 34%;
+    width: 58%; height: 124%;
+    background: linear-gradient(90deg,
+      rgba(255, 248, 234, .92) 0 30%, rgba(255, 248, 234, 0) 30% 35%,
+      rgba(255, 248, 234, .92) 35% 65%, rgba(255, 248, 234, 0) 65% 70%,
+      rgba(255, 248, 234, .92) 70% 100%);
+    transform: skewX(-34deg);
+    filter: blur(14px);
+    opacity: .9;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 22%, #000 78%, transparent 100%);
+            mask-image: linear-gradient(to bottom, transparent 0%, #000 22%, #000 78%, transparent 100%);
+  }
+  /* a slightly warmer, darker floor towards the bottom */
+  .bgfx::after {
+    content: "";
+    position: absolute; inset: 0;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0) 30%, rgba(214, 190, 160, .18) 100%);
   }
 
   /* ---------- header: floating glass capsule ---------- */
@@ -250,6 +275,7 @@
 </header>
 
 <div class="stage">
+  <div class="bgfx" id="bgfx"></div>
   <canvas id="hero"></canvas>
   <canvas id="product"></canvas>
 
@@ -362,6 +388,12 @@
     }
   }
   loadSeq('hero'); loadSeq('product');
+  // the untouched first model frame, for the landing on top of the blurred room (the whitened one would look
+  // too bright and cool there, before the multiply blend kicks in)
+  total++;
+  const FIRST = new Image();
+  FIRST.onload = FIRST.onerror = () => { loaded++; pct.textContent = Math.round(loaded / total * 100) + '%'; if (loaded === total) ready(); };
+  FIRST.src = 'frames/product-first.jpg';
   if (!total) ready();
 
   // ---------- canvas drawing ----------
@@ -380,16 +412,17 @@
     if (!s.count) return;
     pos = clamp(pos, 0, s.count - 1);
     const i = Math.floor(pos), f = pos - i;
-    const key = i + Math.round(f * 32) / 32;
+    const first = name === 'product' && !s.canvas.classList.contains('full');
+    const key = i + Math.round(f * 32) / 32 + (first ? 1e4 : 0);
     if (key === s.last) return;
-    const a = s.imgs[i], b = s.imgs[Math.min(i + 1, s.count - 1)];
+    const a = first ? FIRST : s.imgs[i], b = first ? FIRST : s.imgs[Math.min(i + 1, s.count - 1)];
     if (!a || !a.complete || !a.naturalWidth) return;
     const c = s.canvas, ctx = c.getContext('2d');
     const sc = Math.max(c.width / a.naturalWidth, c.height / a.naturalHeight) * s.fit;
     const w = a.naturalWidth * sc, h = a.naturalHeight * sc;
     const x = (c.width - w) / 2, y = (c.height - h) * s.y;
     ctx.globalAlpha = 1;
-    ctx.fillStyle = PAPER;
+    ctx.fillStyle = name === 'product' ? '#fff' : PAPER;
     ctx.fillRect(0, 0, c.width, c.height);
     ctx.drawImage(a, x, y, w, h);
     if (f > 0.02 && b !== a && b.complete && b.naturalWidth) {
@@ -469,6 +502,7 @@
 
   // ---------- main loop ----------
   const heroUi = document.getElementById('heroUi');
+  const bgfx = document.getElementById('bgfx');
   const wordmark = document.getElementById('wordmark');
   const heroC = seqs.hero.canvas, prodC = seqs.product.canvas;
   const ind = document.getElementById('ind');
@@ -492,6 +526,8 @@
     const hu = range(p, T.heroUiOut);
     const huFade = smooth(0.3, 0.9, hu);
     heroUi.style.opacity = (1 - huFade).toFixed(3);
+    // the window light comes up once the room has faded and the model is multiplied onto the page
+    bgfx.style.opacity = smooth(0.33, 0.45, p).toFixed(3);
     heroUi.style.transform = `translateY(${hu * -22}vh)`;
     wordmark.style.opacity = (1 - huFade).toFixed(3);
     wordmark.style.transform = `translateY(${hu * -22}vh)`;

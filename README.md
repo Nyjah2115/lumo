@@ -15,6 +15,9 @@ Otwórz `index.html` w Chrome lub Safari, włącz pełny ekran i scrolluj (albo 
 - `frames/product/`: klatki ruchu kamery wokół modelu mieszkania na kremowym tle: z góry → widok 3/4 (Veo 3.1, OpenArt).
   Tylko 0–5,1 s z `source/model-move.mp4`: dalej Veo przenika („duch” modelu) do klatki końcowej, zamiast dokończyć ruch.
 - `frames/product-mask.png`: wycięty model z pierwszej klatki (Vision na Macu), maska na czas przejścia.
+- Klatki modelu mają **wybielone tło** (`narzedzia-stron/biel.py`) i po przejściu są nakładane na stronę trybem `multiply`:
+  biel znika, model z cieniem leży na tle ze „światłem z okna” (`.bgfx` w `index.html`).
+  `frames/product-first.jpg` to oryginalna pierwsza klatka, używana tylko przy lądowaniu modelu na rozmytym salonie.
 - `frames/manifest.js`: liczba klatek + krzywe ruchu modelu i hero (równe tempo przy scrollu; w hero ściany „opadają”
   szybko, krzywa daje temu momentowi więcej scrolla).
 - `source/`: oryginały z OpenArt (obrazy GPT Image 2 + oba wideo .mp4).
