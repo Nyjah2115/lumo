@@ -1,7 +1,8 @@
 # Strona oferty mieszkania do nagrania rolki (folder i repo: `lumo`)
 
 Wersja „nieruchomości” stron Solen®, Halden® i Vela®: przykładowe mieszkanie 70 m², bez nazwy biura i bez lokalizacji
-(wielkie napisy: „70 m²” na początku, „Na sprzedaż” na końcu). Robocza nazwa folderu i adresu to nadal `lumo`.
+(wielkie napisy: „70 m²” na początku, „Koncept” na końcu, bez ceny: zamiast niej CTA „Chcesz taką stronę dla swoich
+ofert? · Napisz do mnie”, żeby w rolce nikt nie wziął tego za prawdziwą ofertę). Robocza nazwa folderu i adresu to nadal `lumo`.
 Otwórz `index.html` w Chrome lub Safari, włącz pełny ekran i scrolluj (albo z folderu `vizita-rolki`:
 `python3 -m http.server 8766`, potem http://localhost:8766/lumo/).
 
