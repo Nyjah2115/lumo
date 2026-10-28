@@ -263,6 +263,25 @@
   .loader.done { opacity: 0; pointer-events: none; }
   .loader b { font-weight: 500; font-size: 15px; letter-spacing: -.03em; }
   .loader .pct { font-variant-numeric: tabular-nums; color: var(--ink-dim); }
+
+  /* ---------- telefon: produkt mieści się na szerokość, teksty jeden pod drugim ---------- */
+  @media (max-width: 760px) {
+    .wordmark { left: 16px; bottom: 150px; font-size: 27vw; }
+    #c1, #c2 { left: 20px !important; right: 20px; width: auto !important; top: 12% !important; transform: none !important; }
+    #c1-specs { left: 20px; right: 20px; width: auto; top: auto; bottom: 48px; }
+    #c2 .specs { margin-top: 14px; }
+    .echo .layer { font-size: 21px; }
+    .callout.right .echo .layer { text-align: left; }
+    #c3 { left: 20px; right: 20px; bottom: 28px; grid-template-columns: 1fr; gap: 18px; }
+    .final-name { font-size: 18vw; order: 2; }
+    .final-side { align-items: flex-start; text-align: left; order: 1; }
+    .indicator { right: 6px; }
+    .loader { padding: 24px; }
+    .cap { gap: 12px; padding-left: 16px; }
+    .cap span { display: none; }
+    .hero-info { left: 16px; right: 16px; width: auto; top: 76px; }
+    .hero-tag { left: 16px; right: 16px; width: auto; bottom: 24px; }
+  }
 </style>
 </head>
 <body>
@@ -335,6 +354,8 @@
 
 <script src="frames/manifest.js"></script>
 <script>
+// telefon: ile szerokości ekranu zajmuje cała klatka produktu (więcej = większy produkt)
+const PROD_K = 2.3;
 (() => {
   const FR = window.FRAMES || { hero: 0, product: 0 };
   const PAPER = getComputedStyle(document.documentElement).getPropertyValue('--paper').trim() || '#000';
@@ -423,7 +444,8 @@
     const a = first ? FIRST : s.imgs[i], b = first ? FIRST : s.imgs[Math.min(i + 1, s.count - 1)];
     if (!a || !a.complete || !a.naturalWidth) return;
     const c = s.canvas, ctx = c.getContext('2d');
-    const sc = Math.max(c.width / a.naturalWidth, c.height / a.naturalHeight) * s.fit;
+    const sc = (name === 'product' && innerWidth < innerHeight) ? c.width / a.naturalWidth * PROD_K
+      : Math.max(c.width / a.naturalWidth, c.height / a.naturalHeight) * s.fit;
     const w = a.naturalWidth * sc, h = a.naturalHeight * sc;
     const x = (c.width - w) / 2, y = (c.height - h) * s.y;
     ctx.globalAlpha = 1;
@@ -546,7 +568,18 @@
     const g = ease(range(p, GROW));
     const coverW = Math.max(innerWidth, innerHeight * 16 / 9), coverH = coverW * 9 / 16;
     const lerp = (a, b) => a + (b - a) * g;
-    prodC.style.transform = `translate(${lerp(MATCH.x, REST.x) * coverW}px, ${lerp(MATCH.y, REST.y) * coverH}px) scale(${lerp(MATCH.s, REST.s)})`;
+    // telefon: model na środku ekranu (na komputerze stoi z prawej, obok tekstów)
+    const RST = innerWidth < innerHeight ? { x: 0, y: -0.04 } : REST;
+    prodC.style.transform = `translate(${lerp(MATCH.x, RST.x) * coverW}px, ${lerp(MATCH.y, RST.y) * coverH}px) scale(${lerp(MATCH.s, REST.s)})`;
+
+    // telefon (pionowy ekran): produkt rysowany na szerokość ekranu × PROD_K (nie przycięty po bokach);
+    // w chwili przejścia warstwa jest powiększona do rozmiaru „cover”, żeby trafiła na produkt z hero
+    if (innerWidth < innerHeight) {
+      const z = Math.max(innerWidth, innerHeight * 16 / 9) / (innerWidth * PROD_K);
+      prodC.style.transform += ` scale(${z + (1 - z) * g})`;
+      prodC.style.maskSize = prodC.classList.contains('full') ? '' : `${PROD_K * 100}% auto`;
+      prodC.style.webkitMaskSize = prodC.style.maskSize;
+    }
 
     // product sequence
     draw('product', curvePos(FR.productCurve, seqs.product.count, range(p, T.productPlay)));
